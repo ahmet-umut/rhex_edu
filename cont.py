@@ -177,7 +177,7 @@ class LegController(Node):
 		self.posipdiso = self.posipdis
 		self.posipdis = [posipd(pos) for pos in self.currPos]
 			
-		c="g2"
+		c="tr"
 		match c:
 			case "sd":
 				for i in range(6):
@@ -206,9 +206,6 @@ class LegController(Node):
 						if mt<3:
 							self.s = 0
 			case "tr":
-				self.mt(l2i, 2)
-				self.mt(r2i, 2)
-				
 				mt=0
 				match self.s:
 					case 0:
@@ -221,11 +218,17 @@ class LegController(Node):
 						if mt<3:
 							self.s = 1
 					case 1:
-						mt += self.cveloci(r1i, -1)
-						mt += self.cveloci(r3i, -1)
-						mt += self.cveloci(l1i, 1)
-						mt += self.cveloci(l3i, 1)
+						mt += self.go(r1i)
+						mt += self.go(r3i)
+						mt += self.go(l2i)
+						mt += self.go(r2i)
+						mt += self.go(l1i)
+						mt += self.go(l3i)
 		
+		print(f"torop: {self.torop}")
+		print(f"curvel: {self.currVel}")
+		print(f"state: {self.s}")
+		print(f"mt: {mt}")
 		self.torque.data = [float(tor) for tor in self.torop]
 		self.publisher.publish(self.torque)
 
@@ -340,7 +343,7 @@ class LegController(Node):
 		self.posipdiso = self.posipdis
 		self.posipdis = [posipd(pos) for pos in self.currPos]
 			
-		c="g1"
+		c="tr"
 		match c:
 			case "sd":
 				for i in range(6):
@@ -417,9 +420,9 @@ class LegController(Node):
 		return abs(dif)
 		print(f"leg id {lgi}: {self.currPos[lgi]} {self.posipdis[lgi]} -> {posdis}, posfid = {posdif(self.posipdis[lgi], posdis)}")
 
-	def cveloci(self, lgi, veloci):
-		dif = veloci - self.currVel[lgi]
-		self.torop[lgi] += dif * 8
+	def go(self, lgi):
+		dif = posdif(self.posipdiso[lgi], self.posipdis[lgi])
+		if dif<=0: self.torop[lgi] += (1-dif) * 8
 		return abs(dif)
 		print(f"leg id {lgi}: {self.currPos[lgi]} {self.posipdis[lgi]} -> {posdis}, posfid = {posdif(self.posipdis[lgi], posdis)}")
 
