@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from readchar import readchar as rc
 from asyncio import run as r
+import asyncio
 
 from math import pi
 
@@ -19,6 +20,7 @@ from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, LogI
 from control_msgs.action import FollowJointTrajectory
 from launch.substitutions import LaunchConfiguration
 from std_msgs.msg import Float64MultiArray
+from std_msgs.msg import Bool
 from sensor_msgs.msg import JointState, Imu, PointCloud2
 from message_filters import Subscriber, TimeSynchronizer, ApproximateTimeSynchronizer
 from gazebo_msgs.srv import GetModelState, GetEntityState
@@ -31,6 +33,7 @@ class LegController(Node):
 	def __init__(self):
 		super().__init__('leg_controller')
 		self.publisher = self.create_publisher(Float64MultiArray, '/effort_controller/commands', 10)
+		self.create_subscription(Bool, "/kbi", self.kbicb, 10)
 		
 		#self.subs0 = self.create_subscription(JointState, '/joint_states', self.cbjs, 10)
   
@@ -91,6 +94,7 @@ class LegController(Node):
 		self.torque = Float64MultiArray()
 		self.torque.data = [0.0]*6   #initial torque data.
 
+		self.c = None
 		return
 		# self.subPos = Subscriber(self, Odometry,'/odom/robot_pos')
 		"""
@@ -147,7 +151,15 @@ class LegController(Node):
 		self.exitThread = False
 
 		self.get_logger().info("\n\n---------------------- The node is ready! ----------------------\n\n")
-  
+	
+	def kbicb(s, m):
+		match s.c:
+			case None:
+				s.c = "tr"
+			case "tr":
+				s.c = None
+		print(m)
+
 	def cbjs(s, m:JointState):
 		print("cbjs called")
 		"""
@@ -177,8 +189,7 @@ class LegController(Node):
 		self.posipdiso = self.posipdis
 		self.posipdis = [posipd(pos) for pos in self.currPos]
 			
-		c="tr"
-		match c:
+		match self.c:
 			case "sd":
 				for i in range(6):
 					self.mt(i, 0)
@@ -366,12 +377,12 @@ def sta(posdis, dposd):
 
 def main(args=None):
 	rclpy.init(args=args)
-
 	legController = LegController()
+
 	try:
 		while 1:
 			rclpy.spin_once(legController)
-		legController.run()
+
 	except Exception as e:
 		print("not spiinninnnggg hahaha")
 		print("Got unhandled exception!\n")
@@ -380,7 +391,15 @@ def main(args=None):
 	finally:
 		rclpy.shutdown()
 	"""
-
+async def i():
+	while 1:
+		a = await asyncio.get_event_loop().run_in_executor(None, sys.stdin.readline)
+		print(a)
+async def s(args):
+	rclpy.init(args=args)
+	legController = LegController()
+	while 1:
+		rclpy.spin_once(legController)
 
 if __name__ == '__main__':
 	main()
