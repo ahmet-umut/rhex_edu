@@ -160,7 +160,7 @@ class LegController(Node):
 				 msgJoint: JointState,
 				 msgIMU: Imu
 				):
-		print(f"entered callback")
+		#print(f"entered callback")
 		self.currPos = constrain_angle(np.array([*msgJoint.position]))
 		self.currVel = np.array([*msgJoint.velocity])
 
@@ -196,39 +196,50 @@ class LegController(Node):
 						mt += self.mt(r1i, 0)
 						mt += self.mt(l3i, 0)
 						mt += self.mt(r3i, 0)
-						if mt<3:
+						if mt<1:
 							self.s = 1
+							print(f"0->1")
 					case 1:
 						mt += self.mt(l1i, -2)
 						mt += self.mt(r1i, -2)
 						mt += self.mt(l3i, -2)
 						mt += self.mt(r3i, -2)
-						if mt<3:
+						if mt<1:
 							self.s = 0
+							print(f"1->0")
 			case "tr":
+				self.mt(l2i, 2)
+				self.mt(r2i, 2)
+
 				mt=0
 				match self.s:
 					case 0:
 						mt += self.mt(l1i, 0)
 						mt += self.mt(r1i, 0)
-						mt += self.mt(l2i, 0)
-						mt += self.mt(r2i, 0)
 						mt += self.mt(l3i, 0)
 						mt += self.mt(r3i, 0)
-						if mt<3:
+						if mt<1:
 							self.s = 1
+							"""
+							print(f"torop: {self.torop}")
+							print(f"curvel: {self.currVel}")
+							print(f"state: {self.s}")
+							"""
 					case 1:
-						mt += self.go(r1i)
-						mt += self.go(r3i)
-						mt += self.go(l2i)
-						mt += self.go(r2i)
-						mt += self.go(l1i)
-						mt += self.go(l3i)
+						mt += self.mt(l1i, -2)
+						mt += self.mt(l3i, -2)
+						mt += self.mt(r1i, -2)
+						mt += self.mt(r3i, -2)
+						if mt<3:
+							self.s = 2
+					case 2:
+						mt += self.mt(l1i, 0)
+						mt += self.mt(l3i, 0)
+						mt += self.mt(r1i, -2)
+						mt += self.mt(r3i, -2)
+						if mt<2:
+							self.s = 0
 		
-		print(f"torop: {self.torop}")
-		print(f"curvel: {self.currVel}")
-		print(f"state: {self.s}")
-		print(f"mt: {mt}")
 		self.torque.data = [float(tor) for tor in self.torop]
 		self.publisher.publish(self.torque)
 
@@ -323,96 +334,6 @@ class LegController(Node):
 	self.cmd_tau = np.zeros(6)
 	self.cmd_enabled = False
 	"""
-	def ctor(self, td=None):
-		"""
-		 front
-		l3^^r3
-		l2!!r2
-		l1!!r1
-		 back
-		"""
-		l1i=0
-		l2i=2
-		l3i=4
-		r1i=1
-		r2i=3
-		r3i=5
-		
-		self.torop = [0]*6
-		
-		self.posipdiso = self.posipdis
-		self.posipdis = [posipd(pos) for pos in self.currPos]
-			
-		c="tr"
-		match c:
-			case "sd":
-				for i in range(6):
-					self.mt(i, 0)
-			case "g1":
-				for i in range(6):
-					self.torop[i] = ((self.posipd[i] - self.posipdo[i]) != 1) * 1
-			case "g2":    
-				self.mt(l2i, 2)
-				self.mt(r2i, 2)
-
-				mt = 0
-				match self.s:
-					case 0:
-						mt += self.mt(l1i, 0)
-						mt += self.mt(r1i, 0)
-						mt += self.mt(l3i, 0)
-						mt += self.mt(r3i, 0)
-						if mt<3:
-							self.s = 1
-					case 1:
-						mt += self.mt(l1i, -2)
-						mt += self.mt(r1i, -2)
-						mt += self.mt(l3i, -2)
-						mt += self.mt(r3i, -2)
-						if mt<3:
-							self.s = 0
-			case "tr":
-				self.mt(l2i, 2)
-				self.mt(r2i, 2)
-				
-				mt=0
-				match self.s:
-					case 0:
-						mt += self.mt(l1i, 0)
-						mt += self.mt(r1i, 0)
-						mt += self.mt(l2i, 0)
-						mt += self.mt(r2i, 0)
-						mt += self.mt(l3i, 0)
-						mt += self.mt(r3i, 0)
-						if mt<3:
-							self.s = 1
-					case 1:
-						mt += self.cveloci(r1i, -1)
-						mt += self.cveloci(r3i, -1)
-						mt += self.cveloci(l1i, 1)
-						mt += self.cveloci(l3i, 1)
-				""" 
-				self.torop[r2i] = self.torop[l3i] = tor*1
-				match self.posipd[r3i], self.posipd[r2i]:
-					case (-1,0) | (0,1) | (1,-1):
-						self.torop[r2i] *= -1
-				match self.posipd[r3i], self.posipd[l3i]:
-					case (-1,0) | (0,1) | (1,-1):
-						self.torop[l3i] *= -1
-				self.torop[r3i] = -self.torop[r2i] - self.torop[l3i]
-				
-				self.torop[r1i] = tor*1
-				match self.posipd[r3i], self.posipd[r1i]:
-					case (-1,0) | (0,1) | (1,-1):
-						self.torop[r1i] *= -1
-				self.torop[r3i] += -self.torop[r1i]
-
-				#print(possl)
-				for i in range(6):
-					self.torop[i] += tor*2
-				self.torop[l3i] = 9
-				"""
-		return self.torop
 
 	def mt(self, lgi, posdis):
 		dif = posdif(self.posipdis[lgi], posdis)
@@ -420,9 +341,9 @@ class LegController(Node):
 		return abs(dif)
 		print(f"leg id {lgi}: {self.currPos[lgi]} {self.posipdis[lgi]} -> {posdis}, posfid = {posdif(self.posipdis[lgi], posdis)}")
 
-	def go(self, lgi):
+	def go(self, lgi, veloci):
 		dif = posdif(self.posipdiso[lgi], self.posipdis[lgi])
-		if dif<=0: self.torop[lgi] += (1-dif) * 8
+		self.torop[lgi] += veloci - dif
 		return abs(dif)
 		print(f"leg id {lgi}: {self.currPos[lgi]} {self.posipdis[lgi]} -> {posdis}, posfid = {posdif(self.posipdis[lgi], posdis)}")
 
